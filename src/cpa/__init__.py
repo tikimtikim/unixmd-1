@@ -1,1 +1,1 @@
-from .sh_cpa import SH_CPA
+from .sh import SH

@@ -6,7 +6,7 @@ import random, os, shutil, textwrap
 import numpy as np
 import pickle
 
-class SH_CPA(CPA):
+class SH(CPA):
     """ Class for surface hopping dynamics with CPA
 
         :param object molecule: Molecule object

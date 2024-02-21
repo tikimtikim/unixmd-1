@@ -265,6 +265,7 @@ class CPA(object):
         dynamics_info += textwrap.indent(textwrap.dedent(f"""\
 
           MQC Method               = {self.md_type:>16s}
+          Classical Path Approx.   = {'Yes':>16s}
           Time Interval (fs)       = {self.dt / fs_to_au:16.6f}
           Initial State (0:GS)     = {self.istate:>16d}
           Nuclear Step             = {self.nsteps:>16d}
