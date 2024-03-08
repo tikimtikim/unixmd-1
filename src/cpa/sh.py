@@ -82,16 +82,87 @@ class SH(CPA):
         self.print_init(qm, mm, restart)
 
         if (restart == None):
-            pass
+            # Calculate initial input geometry at t = 0.0 s
+            self.istep = -1
+            self.mol.reset_bo(qm.calc_coupling)
+
+            self.read_QM_from_file(self.istep)
+            if (self.mol.l_qmmm and mm != None):
+                mm.get_data(self.mol, base_dir, bo_list, self.istep, calc_force_only=False)
+ 
+            self.hop_prob()
+            self.hop_check(bo_list)
+ 
+            if (self.dec_correction == "idc"):
+                if (self.l_hop or self.l_reject):
+                    self.correct_dec_idc()
+                elif (self.dec_correction == "edc"):
+                    # If kinetic is 0, coefficient/density matrix are update into itself
+                    if (self.mol.ekin_qm > eps):
+                        self.correct_dec_edc()
+ 
+            self.update_energy()
+ 
+            self.write_md_output(unixmd_dir, self.istep)
+            self.print_step(self.istep)
+
         elif (restart == "write"):
-            pass
+            # Reset initial time step to t = 0.0 s
+            self.istep = -1
+            self.write_md_output(unixmd_dir, self.istep)
+            self.print_step(self.istep)
+
         elif (restart == "append"):
-            pass
+            # Set initial time step to last successful step of previous dynamics
+            self.istep = self.fstep
+
         self.istep += 1
 
         # Main MD loop
         for istep in range(self.istep, self.nsteps):
-            pass
+              
+            self.mol.backup_bo()
+            self.mol.reset_bo(qm.calc_coupling)
+            self.read_QM_from_file(istep)
+            if (self.mol.l_qmmm and mm != None):
+                mm.get_data(self.mol, base_dir, bo_list, istep, calc_force_only=False)
+
+            if (not self.mol.l_nacme and self.l_adj_nac):
+                self.mol.adjust_nac()
+
+            self.read_RP_from_file(istep)
+            
+            el_run(self)
+
+            self.hop_prob()
+            self.hop_check(bo_list)
+
+            if (self.dec_correction == "idc"):
+                if (self.l_hop or self.l_reject):
+                    self.correct_dec_idc()
+            elif (self.dec_correction == "edc"):
+                # If kinetic is 0, coefficient/density matrix are update into itself
+                if (self.mol.ekin_qm > eps):
+                    self.correct_dec_edc()
+
+            self.update_energy()
+
+            if ((istep + 1) % self.out_freq == 0):
+                self.write_md_output(unixmd_dir, istep)
+            if ((istep + 1) % self.out_freq == 0 or len(self.event["HOP"]) > 0):
+                self.print_step(istep)
+            
+            self.fstep = istep
+
+            if (not l_save_scr):
+                tmp_dir = os.path.join(unixmd_dir, "scr_qm")
+                if(os.path.exists(tmp_dir)):
+                    shutil.rmtree(tmp_dir)
+
+                if(self.mol.l_qmmm and mm != None):
+                    tmp_dir = os.path.join(unixmd_dir, "scr_mm")
+                    if (os.path.exists(tmp_dir)):
+                        shutil.rmtree(tmp_dir)
 
     def hop_prob(self):
         """ Routine to calculate hopping probabilities
