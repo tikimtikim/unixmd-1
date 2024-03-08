@@ -76,9 +76,77 @@ class SH(CPA):
         # Initialize PyUNIxMD
         base_dir, unixmd_dir, qm_log_dir, mm_log_dir =\
              self.run_init(qm, mm, output_dir, l_save_qm_log, l_save_mm_log, l_save_scr, restart)
-        bo_list = [self.rstate]
+
+        bo_list = [] # a redundant variable in CPA-like dynamics
         qm.calc_coupling = False
         self.print_init(qm, mm, restart)
+
+        if (restart == None):
+            pass
+        elif (restart == "write"):
+            pass
+        elif (restart == "append"):
+            pass
+        self.istep += 1
+        
+        # Main MD loop
+        for istep in range(self.istep, self.nsteps):
+            pass
+           
+    def hop_prob(self, istep):
+        """ Routine to calculate hopping probabilities
+
+            :param integer istep: Current MD step
+        """
+        pass
+
+    def hop_check(self, bo_list):
+        """ Routine to check hopping occurs with random number
+
+            :param integer,list bo_list: List of BO states for BO calculation
+        """
+        pass
+
+    def correct_dec_idc(self):
+        """ Routine to decoherence correction, instantaneous decoherence correction(IDC) scheme
+        """
+        pass
+
+
+    def correct_dec_edc(self):
+        """ Routine to decoherence correction, energy-based decoherence correction(EDC) scheme
+        """
+        pass
+
+    def update_energy(self):
+        """ Routine to update the energy of molecules in surface hopping dynamics
+        """
+        pass
+
+    def write_md_output(self, unixmd_dir, istep):
+        """ Write output files
+
+            :param string unixmd_dir: PyUNIxMD directory
+            :param integer istep: Current MD step
+
+        """
+        pass
+
+    def write_sh(self, unixmd_dir, istep):
+        """ Write hopping-related quantities into files
+
+            :param string unixmd_dir: PyUNIxMD directory
+            :param integer istep: Current MD step
+        """
+        pass
+
+    def write_dotpop(self, unixmd_dir, istep):
+        """ Write time-derivative BO population
+           
+            :param string unixmd_dir: PyUNIxMD directory
+            :param integer istep: Current MD step
+        """
+        pass
 
     def print_init(self, qm, mm, restart):
         """ Routine to print the initial information of dynamics
@@ -108,3 +176,24 @@ class SH(CPA):
             dynamics_step_info += "\n" + DEBUG1
 
         print (dynamics_step_info, flush=True)
+
+    def print_step(self, istep):
+        """ Routine to print each steps infomation about dynamics
+
+            :param integer istep: Current MD step
+        """
+        pass
+
+    def read_QM_from_file(self, istep):
+        """Routine to read precomputed QM information for CPA dynamics
+
+           :param integer istep: Current MD step
+        """
+        pass
+
+    def read_RP_from_file(self, istep):
+        """Routine to read precomputed atomic position, velocities for CPA dynamics
+
+           :param integer istep: Current MD step
+        """
+        pass
