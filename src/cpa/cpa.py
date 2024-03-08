@@ -190,7 +190,7 @@ class CPA(object):
 
         os.chdir(base_dir[0])
 
-        return base_dir, unixmd_dir, qm_log_dir, mm_log_dir
+        return base_dir[0], unixmd_dir[0], qm_log_dir, mm_log_dir
 
     def update_potential(self):
         """ Routine to update the potential of molecules
@@ -271,9 +271,6 @@ class CPA(object):
           Nuclear Step             = {self.nsteps:>16d}
         """), "  ")
 
-        dynamics_info += f"  Electronic Step          = {self.nesteps:>16d}\n"
-        dynamics_info += f"  Electronic Propagator    = {self.propagator:>16s}\n"
-        dynamics_info += f"  Propagation Scheme       = {self.elec_object:>16s}\n"
 
         # Print ad-hoc decoherence variables
         if (self.md_type == "SH"):
@@ -337,5 +334,50 @@ class CPA(object):
 
     def write_md_output(self, unixmd_dir, istep):
         """ Write output files
+
+            :param string unixmd_dir: Directory where MD output files are written
+            :param integer istep: Current MD step
         """
-        pass
+        # Write MOVIE.xyz file including positions and velocities
+        tmp = f'{self.mol.nat:6d}\n{"":2s}Step:{istep + 1:6d}{"":12s}Position(A){"":34s}Velocity(au)' + \
+            "".join(["\n" + f'{self.mol.symbols[iat]:5s}' + \
+            "".join([f'{self.mol.pos[iat, isp] * au_to_A:15.8f}' for isp in range(self.mol.ndim)]) + \
+            "".join([f"{self.mol.vel[iat, isp]:15.8f}" for isp in range(self.mol.ndim)]) for iat in range(self.mol.nat)])
+        typewriter(tmp, unixmd_dir, "MOVIE.xyz", "a")
+
+        # Write MDENERGY file including several energy information
+        tmp = f'{istep + 1:9d}{self.mol.ekin:15.8f}{self.mol.epot:15.8f}{self.mol.etot:15.8f}' \
+            + "".join([f'{states.energy:15.8f}' for states in self.mol.states])
+        typewriter(tmp, unixmd_dir, "MDENERGY", "a")
+
+        # Write BOCOEF, BOPOP, BOCOH files
+        if (self.elec_object == "density"):
+            tmp = f'{istep + 1:9d}' + "".join([f'{self.mol.rho.real[ist, ist]:15.8f}' for ist in range(self.mol.nst)])
+            typewriter(tmp, unixmd_dir, "BOPOP", "a")
+            tmp = f'{istep + 1:9d}' + "".join([f"{self.mol.rho.real[ist, jst]:15.8f}{self.mol.rho.imag[ist, jst]:15.8f}" \
+                for ist in range(self.mol.nst) for jst in range(ist + 1, self.mol.nst)])
+            typewriter(tmp, unixmd_dir, "BOCOH", "a")
+        elif (self.elec_object == "coefficient"):
+            tmp = f'{istep + 1:9d}' + "".join([f'{states.coef.real:15.8f}{states.coef.imag:15.8f}' \
+                for states in self.mol.states])
+            typewriter(tmp, unixmd_dir, "BOCOEF", "a")
+            if (self.l_print_dm):
+                tmp = f'{istep + 1:9d}' + "".join([f'{self.mol.rho.real[ist, ist]:15.8f}' for ist in range(self.mol.nst)])
+                typewriter(tmp, unixmd_dir, "BOPOP", "a")
+                tmp = f'{istep + 1:9d}' + "".join([f"{self.mol.rho.real[ist, jst]:15.8f}{self.mol.rho.imag[ist, jst]:15.8f}" \
+                    for ist in range(self.mol.nst) for jst in range(ist + 1, self.mol.nst)])
+
+        # Write NACME file
+        tmp = f'{istep + 1:10d}' + "".join([f'{self.mol.nacme[ist, jst]:15.8f}' \
+            for ist in range(self.mol.nst) for jst in range(ist + 1, self.mol.nst)])
+        typewriter(tmp, unixmd_dir, "NACME", "a")
+
+        # Write NACV file
+        if (not self.mol.l_nacme and self.verbosity >= 2):
+            for ist in range(self.mol.nst):
+                for jst in range(ist + 1, self.mol.nst):
+                    tmp = f'{self.mol.nat_qm:6d}\n{"":2s}Step:{istep + 1:6d}{"":12s}NACV' + \
+                        "".join(["\n" + f'{self.mol.symbols[iat]:5s}' + \
+                        "".join([f'{self.mol.nac[ist, jst, iat, isp]:15.8f}' for isp in range(self.mol.ndim)]) for iat in range(self.mol.nat_qm)])
+                    typewriter(tmp, unixmd_dir, f"NACV_{ist}_{jst}", "a")
+
