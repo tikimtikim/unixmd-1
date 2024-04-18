@@ -55,7 +55,7 @@ class CPA(object):
         if (self.elec_object != None):
             self.elec_object = self.elec_object.lower()
 
-        if not (self.elec_object in ["coefficient", "density"]):
+        if not (self.elec_object in [None, "coefficient", "density"]):
             error_message = "Invalid electronic object!"
             error_vars = f"elec_object = {self.elec_object}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
@@ -64,7 +64,7 @@ class CPA(object):
         if (self.propagator != None):
             self.propagator = self.propagator.lower()
 
-        if not (self.propagator in ["rk4", "exponential"]):
+        if not (self.propagator in [None, "rk4", "exponential"]):
             error_message = "Invalid electronic propagator!"
             error_vars = f"propagator = {self.propagator}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
@@ -271,6 +271,10 @@ class CPA(object):
           Nuclear Step             = {self.nsteps:>16d}
         """), "  ")
 
+        if (self.md_type != "BOMD"):
+            dynamics_info += f"  Electronic Step          = {self.nesteps:>16d}\n"
+            dynamics_info += f"  Electronic Propagator    = {self.propagator:>16s}\n"
+            dynamics_info += f"  Propagation Scheme       = {self.elec_object:>16s}\n"
 
         # Print ad-hoc decoherence variables
         if (self.md_type == "SH"):
