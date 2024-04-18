@@ -36,6 +36,26 @@ class SH(CPA):
         super().__init__(molecule, istate, dt, nsteps, nesteps, \
             elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity)
 
+        # Initialize trajectory data
+        self.pos = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.vel = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.energy = np.zeros((nsteps + 1, molecule.nst))
+        self.force = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.nacme = np.zeros((nsteps + 1, molecule.nst, molecule.nst))
+        
+        for istep in [x for x in range(index_start - 1, index_start + nsteps)]:
+            with open(os.path.join(samp_dir, "QM." + str(istep) + ".bin"), "rb") as f:
+                data = pickle.load(f)
+
+            self.energy[istep - index_start] = data["energy"]
+            self.force[istep - index_start] = data["force"]
+            self.nacme[istep - index_start] = data["nacme"]
+
+            with open(os.path.join(samp_dir, "RP." + str(istep) + ".bin"), "rb") as f:
+                data = pickle.load(f)
+            self.pos[istep - index_start] = data["pos"]
+            self.vel[istep - index_start] = data["vel"]
+
         # Initialize SH variables
         self.rstate = istate
         self.rstate_old = self.rstate
@@ -89,6 +109,7 @@ class SH(CPA):
             self.istep = -1
             self.mol.reset_bo(qm.calc_coupling)
 
+            self.read_RP_from_file(self.istep)
             self.read_QM_from_file(self.istep)
             if (self.mol.l_qmmm and mm != None):
                 mm.get_data(self.mol, base_dir, bo_list, self.istep, calc_force_only=False)
@@ -112,6 +133,9 @@ class SH(CPA):
         elif (restart == "write"):
             # Reset initial time step to t = 0.0 s
             self.istep = -1
+            
+            self.read_RP_from_file(self.istep)
+            self.read_QM_from_file(self.istep)
             self.write_md_output(unixmd_dir, self.istep)
             self.print_step(self.istep)
 
@@ -376,11 +400,15 @@ class SH(CPA):
 
            :param integer istep: Current MD step
         """
-        pass
+        for ist in range(self.mol.nst):
+            self.mol.states[ist].energy = self.energy[istep, ist]
+        self.rforce = self.force[istep]
+        self.mol.nacme = self.nacme[istep]
 
     def read_RP_from_file(self, istep):
         """Routine to read precomputed atomic position, velocities for CPA dynamics
 
            :param integer istep: Current MD step
         """
-        pass
+        self.mol.pos = self.pos[istep]
+        self.mol.vel = self.vel[istep]
