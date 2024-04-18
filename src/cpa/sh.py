@@ -220,7 +220,7 @@ class SH(CPA):
             self.acc_prob /= psum
 
     def hop_check(self, bo_list):
-        """ Routine to check hopping occurs with random number
+        """ Routine to check hopping occurs with random number and record hopping event
 
             :param integer,list bo_list: List of BO states for BO calculation
         """
@@ -231,6 +231,10 @@ class SH(CPA):
             if (self.rand > self.acc_prob[ist] and self.rand <= self.acc_prob[ist + 1]):
                 self.l_hop = True
                 self.rstate = ist
+
+        # Record hopping event
+        if (self.rstate != self.rstate_old):
+            self.event["HOP"].append(f"Accept hopping: hop {self.rstate_old} -> {self.rstate}")
 
     def correct_dec_idc(self):
         """ Routine to decoherence correction, instantaneous decoherence correction(IDC) scheme
