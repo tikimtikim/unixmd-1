@@ -1,11 +1,11 @@
 from __future__ import division
-from mqc.mqc import MQC
+from cpa.cpa import CPA
 from misc import au_to_K, call_name
 import os, shutil, textwrap
 import numpy as np
 import pickle
 
-class BOMD(MQC):
+class BOMD(CPA):
     """ Class for born-oppenheimer molecular dynamics (BOMD)
 
         :param object molecule: Molecule object
@@ -23,7 +23,7 @@ class BOMD(MQC):
             False, None, None, unit_dt, out_freq, verbosity)
 
     def run(self, qm, mm=None, output_dir="./", l_save_qm_log=False, l_save_mm_log=False, l_save_scr=True, restart=None):
-        """ Run MQC dynamics according to BOMD
+        """ Run CPA dynamics according to BOMD
 
             :param object qm: QM object containing on-the-fly calculation infomation
             :param object mm: MM object containing MM calculation infomation
