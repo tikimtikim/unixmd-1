@@ -1,9 +1,10 @@
 from __future__ import division
 from cpa.cpa import CPA
-from misc import au_to_K, call_name
+from misc import eps, au_to_K, call_name, typewriter
 import os, shutil, textwrap
 import numpy as np
 import pickle
+import time
 
 class BOMD(CPA):
     """ Class for born-oppenheimer molecular dynamics (BOMD)
