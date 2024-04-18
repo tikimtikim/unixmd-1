@@ -7,7 +7,7 @@ import pickle
 import time
 
 class BOMD(CPA):
-    """ Class for born-oppenheimer molecular dynamics (BOMD)
+    """ Class for born-oppenheimer molecular dynamics (BOMD) sampling
 
         :param object molecule: Molecule object
         :param object thermostat: Thermostat object
@@ -24,7 +24,7 @@ class BOMD(CPA):
             False, None, None, unit_dt, out_freq, verbosity)
 
     def run(self, qm, mm=None, output_dir="./", l_save_qm_log=False, l_save_mm_log=False, l_save_scr=True, restart=None):
-        """ Run CPA dynamics according to BOMD
+        """ Run BOMD to obtain binary for CPA dynamics
 
             :param object qm: QM object containing on-the-fly calculation infomation
             :param object mm: MM object containing MM calculation infomation
