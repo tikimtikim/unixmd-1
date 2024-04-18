@@ -23,12 +23,15 @@ class SH(CPA):
         :param string dec_correction: Simple decoherence correction schemes
         :param double edc_parameter: Energy constant (H) for rescaling coefficients in edc
         :param string unit_dt: Unit of time step
+        :param string samp_dir: Path of sampling data folder
         :param integer out_freq: Frequency of printing output
         :param integer verbosity: Verbosity of output
+        :param integer index_start: Index for starting read BOMD sampling data
     """
     def __init__(self, molecule, istate=0, dt=0.5, nsteps=1000, nesteps=20, \
         elec_object="density", propagator="rk4", l_print_dm=True, l_adj_nac=True, init_coef=None, \
-        dec_correction=None, edc_parameter=0.1, unit_dt="fs", out_freq=1, verbosity=0):
+        dec_correction=None, edc_parameter=0.1, unit_dt="fs", samp_dir = "./Data", \
+        out_freq=1, verbosity=0, index_start=0):
         # Initialize input values
         super().__init__(molecule, istate, dt, nsteps, nesteps, \
             elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity)
