@@ -26,6 +26,17 @@ class BOMD(CPA):
         super().__init__(molecule, istate, dt, nsteps, None, None, None, \
             False, None, None, unit_dt, out_freq, verbosity)
 
+        self.thermo = thermostat
+        self.samp_dir = samp_dir
+        self.rforce = np.zeros((self.mol.nat, self.mol.ndim))
+
+        if(not os.path.exists(self.samp_dir)):
+            os.makedirs(self.samp_dir)
+        else:
+            error_message = "File already exists!"
+            error_vars = f"samp_dir = {self.samp_dir}"
+            raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
+
     def run(self, qm, mm=None, output_dir="./", l_save_qm_log=False, l_save_mm_log=False, l_save_scr=True, restart=None):
         """ Run BOMD to obtain binary for CPA dynamics
 
