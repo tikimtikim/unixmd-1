@@ -4,7 +4,6 @@ from misc import eps, au_to_K, call_name, typewriter
 import os, shutil, textwrap
 import numpy as np
 import pickle
-import time
 
 class BOMD(CPA):
     """ Class for born-oppenheimer molecular dynamics (BOMD) sampling
@@ -29,7 +28,7 @@ class BOMD(CPA):
         self.samp_dir = samp_dir
         self.rforce = np.zeros((self.mol.nat, self.mol.ndim))
 
-        if(not os.path.exists(self.samp_dir)):
+        if (not os.path.exists(self.samp_dir)):
             os.makedirs(self.samp_dir)
         else:
             error_message = "File already exists!"
@@ -100,7 +99,7 @@ class BOMD(CPA):
 
             if (self.thermo != None):
                 self.thermo.run(self)
-            
+
             self.update_energy()
             
             self.save_bin(istep)
@@ -132,13 +131,13 @@ class BOMD(CPA):
             
             :param integer istep: Current MD step
         """
-        filename = os.path.join(self.samp_dir, "QM." + str(istep) + ".bin")
+        filename = os.path.join(self.samp_dir, f"QM.{istep}.bin")
         with open(filename, "wb") as f:
-            pickle.dump({"energy":np.array([x.energy for x in self.mol.states]), "force":self.rforce, "nacme":self.mol.nacme}, f)
+            pickle.dump({"ENERGY":np.array([x.energy for x in self.mol.states]), "FORCE":self.rforce, "NACME":self.mol.nacme}, f)
 
-        filename = os.path.join(self.samp_dir, "RP." + str(istep) + ".bin")
+        filename = os.path.join(self.samp_dir, f"RV.{istep}.bin")
         with open(filename, "wb") as f:
-            pickle.dump({"pos":self.mol.pos, "vel":self.mol.vel}, f)
+            pickle.dump({"POS":self.mol.pos, "VEL":self.mol.vel}, f)
 
     def calculate_force(self):
         """ Routine to calculate the forces
@@ -155,7 +154,7 @@ class BOMD(CPA):
 
     def print_init(self, qm, mm, restart):
         """ Routine to print the initial information of dynamics
-            
+
             :param object qm: QM object containing on-the-fly calculation infomation
             :param object mm: MM object containing MM calculation infomation
             :param string restart: Option for controlling dynamics restarting

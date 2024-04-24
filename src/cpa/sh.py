@@ -48,14 +48,14 @@ class SH(CPA):
             with open(os.path.join(samp_dir, f"QM.{istep}.bin"), "rb") as f:
                 data = pickle.load(f)
 
-            self.energy[istep - index_start] = data["energy"]
-            self.force[istep - index_start] = data["force"]
-            self.nacme[istep - index_start] = data["nacme"]
+            self.energy[istep - index_start] = data["ENERGY"]
+            self.force[istep - index_start] = data["FORCE"]
+            self.nacme[istep - index_start] = data["NACME"]
 
-            with open(os.path.join(samp_dir, f"RP.{istep}.bin"), "rb") as f:
+            with open(os.path.join(samp_dir, f"RV.{istep}.bin"), "rb") as f:
                 data = pickle.load(f)
-            self.pos[istep - index_start] = data["pos"]
-            self.vel[istep - index_start] = data["vel"]
+            self.pos[istep - index_start] = data["POS"]
+            self.vel[istep - index_start] = data["VEL"]
 
         # Initialize SH variables
         self.rstate = istate
@@ -113,13 +113,14 @@ class SH(CPA):
             self.istep = -1
             self.mol.reset_bo(qm.calc_coupling)
 
-            self.read_RP_from_file(self.istep)
+            self.read_RV_from_file(self.istep)
             self.read_QM_from_file(self.istep)
             if (self.mol.l_qmmm and mm != None):
                 mm.get_data(self.mol, base_dir, bo_list, self.istep, calc_force_only=False)
- 
+
             self.hop_prob()
             self.hop_check(bo_list)
+            self.evaluate_hop(bo_list)
  
             if (self.dec_correction == "idc"):
                 if (self.l_hop or self.l_reject):
@@ -138,7 +139,7 @@ class SH(CPA):
             # Reset initial time step to t = 0.0 s
             self.istep = -1
             
-            self.read_RP_from_file(self.istep)
+            self.read_RV_from_file(self.istep)
             self.read_QM_from_file(self.istep)
             self.write_md_output(unixmd_dir, self.istep)
             self.print_step(self.istep)
@@ -161,7 +162,7 @@ class SH(CPA):
             if (not self.mol.l_nacme and self.l_adj_nac):
                 self.mol.adjust_nac()
 
-            self.read_RP_from_file(istep)
+            self.read_RV_from_file(istep)
             
             el_run(self)
 
@@ -226,6 +227,7 @@ class SH(CPA):
 
     def hop_check(self, bo_list):
         """ Routine to check hopping occurs with random number
+
             :param integer,list bo_list: List of BO states for BO calculation
         """
         self.rand = random.random()
@@ -499,19 +501,19 @@ class SH(CPA):
         self.event["HOP"] = []
 
     def read_QM_from_file(self, istep):
-        """Routine to read precomputed QM information for CPA dynamics
+        """ Routine to read precomputed QM information for CPA dynamics
 
-           :param integer istep: Current MD step
+            :param integer istep: Current MD step
         """
         for ist in range(self.mol.nst):
             self.mol.states[ist].energy = self.energy[istep, ist]
         self.rforce = self.force[istep]
         self.mol.nacme = self.nacme[istep]
 
-    def read_RP_from_file(self, istep):
-        """Routine to read precomputed atomic position, velocities for CPA dynamics
+    def read_RV_from_file(self, istep):
+        """ Routine to read precomputed atomic position, velocities for CPA dynamics
 
-           :param integer istep: Current MD step
+            :param integer istep: Current MD step
         """
         self.mol.pos = self.pos[istep]
         self.mol.vel = self.vel[istep]
