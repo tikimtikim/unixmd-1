@@ -9,6 +9,7 @@ class CPA(object):
     """ Class for electronic propagator used in MQC dynamics with classical path approximation
 
         :param object molecule: Molecule object
+        :param object thermostat: Thermostat object
         :param integer istate: Initial adiabatic state
         :param double dt: Time interval
         :param integer nsteps: Nuclear step
@@ -23,13 +24,16 @@ class CPA(object):
         :param integer out_freq: Frequency of printing output
         :param integer verbosity: Verbosity of output
     """
-    def __init__(self, molecule, istate, dt, nsteps, nesteps, \
+    def __init__(self, molecule, thermostat, istate, dt, nsteps, nesteps, \
         elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity):
         # Save name of MQC dynamics
         self.md_type = self.__class__.__name__
 
         # Initialize Molecule object
         self.mol = molecule
+
+        # Initialize Thermostat object
+        self.thermo = thermostat
 
         # Initialize input values
         self.istate = istate

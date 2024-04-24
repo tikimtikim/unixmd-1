@@ -18,15 +18,14 @@ class BOMD(CPA):
         :param string unit_dt: Unit of time step
         :param integer out_freq: Frequency of printing output
         :param integer verbosity: Verbosity of output
-        :param string samp_dir: Path of sampling data folder
+        :param string samp_dir: Path of sampling data directory
     """
     def __init__(self, molecule, thermostat=None, istate=0, dt=0.5, nsteps=1000, \
         unit_dt="fs", out_freq=1, verbosity=0, samp_dir="./Data"):
         # Initialize input values
-        super().__init__(molecule, istate, dt, nsteps, None, None, None, \
+        super().__init__(molecule, thermostat, istate, dt, nsteps, None, None, None, \
             False, None, None, unit_dt, out_freq, verbosity)
 
-        self.thermo = thermostat
         self.samp_dir = samp_dir
         self.rforce = np.zeros((self.mol.nat, self.mol.ndim))
 
@@ -64,6 +63,7 @@ class BOMD(CPA):
                 mm.get_data(self.mol, base_dir, bo_list, self.istep, calc_force_only=False)
             self.update_energy()
             self.save_bin(self.istep)
+            self.write_md_output(unixmd_dir, self.istep)
             self.print_step(self.istep)
 
         elif (restart == "write"):
@@ -108,6 +108,8 @@ class BOMD(CPA):
             if ((istep + 1) % self.out_freq == 0):
                 self.write_md_output(unixmd_dir, istep)
                 self.print_step(istep)
+            if (istep == self.nsteps - 1):
+                self.write_final_xyz(unixmd_dir, istep)
 
             self.fstep = istep
             restart_file = os.path.join(base_dir, "RESTART.bin")

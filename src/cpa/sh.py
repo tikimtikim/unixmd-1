@@ -10,12 +10,15 @@ class SH(CPA):
     """ Class for surface hopping dynamics with CPA
 
         :param object molecule: Molecule object
+        :param object thermostat: Thermostat object
         :param integer istate: Initial state
         :param double dt: Time interval
         :param integer nsteps: Total step of nuclear propagation
         :param integer nesteps: Total step of electronic propagation
+        :param integer index_start: Initial index for running SH with sampled data
         :param string elec_object: Electronic equation of motions
         :param string propagator: Electronic propagator
+        :param string samp_dir: Path of sampling data directory
         :param boolean l_print_dm: Logical to print BO population and coherence
         :param boolean l_adj_nac: Adjust nonadiabatic coupling to align the phases
         :param init_coef: Initial BO coefficient
@@ -23,35 +26,33 @@ class SH(CPA):
         :param string dec_correction: Simple decoherence correction schemes
         :param double edc_parameter: Energy constant (H) for rescaling coefficients in edc
         :param string unit_dt: Unit of time step
-        :param string samp_dir: Path of sampling data folder
         :param integer out_freq: Frequency of printing output
         :param integer verbosity: Verbosity of output
-        :param integer index_start: Index for starting read BOMD sampling data
     """
-    def __init__(self, molecule, istate=0, dt=0.5, nsteps=1000, nesteps=20, \
-        elec_object="density", propagator="rk4", l_print_dm=True, l_adj_nac=True, init_coef=None, \
-        dec_correction=None, edc_parameter=0.1, unit_dt="fs", samp_dir = "./Data", \
-        out_freq=1, verbosity=0, index_start=0):
+    def __init__(self, molecule, thermostat=None, istate=0, dt=0.5, nsteps=1000, nesteps=20, \
+        index_start=0, elec_object="density", propagator="rk4", samp_dir = "./Data", \
+        l_print_dm=True, l_adj_nac=True, init_coef=None, dec_correction=None, \
+        edc_parameter=0.1, unit_dt="fs", out_freq=1, verbosity=0):
         # Initialize input values
-        super().__init__(molecule, istate, dt, nsteps, nesteps, \
+        super().__init__(molecule, thermostat, istate, dt, nsteps, nesteps, \
             elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity)
 
         # Initialize trajectory data
-        self.pos = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
-        self.vel = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
-        self.energy = np.zeros((nsteps + 1, molecule.nst))
-        self.force = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
-        self.nacme = np.zeros((nsteps + 1, molecule.nst, molecule.nst))
+        self.pos = np.zeros((self.nsteps + 1, molecule.nat, molecule.ndim))
+        self.vel = np.zeros((self.nsteps + 1, molecule.nat, molecule.ndim))
+        self.energy = np.zeros((self.nsteps + 1, molecule.nst))
+        self.force = np.zeros((self.nsteps + 1, molecule.nat, molecule.ndim))
+        self.nacme = np.zeros((self.nsteps + 1, molecule.nst, molecule.nst))
         
-        for istep in [x for x in range(index_start - 1, index_start + nsteps)]:
-            with open(os.path.join(samp_dir, "QM." + str(istep) + ".bin"), "rb") as f:
+        for istep in range(index_start - 1, index_start + nsteps):
+            with open(os.path.join(samp_dir, f"QM.{istep}.bin"), "rb") as f:
                 data = pickle.load(f)
 
             self.energy[istep - index_start] = data["energy"]
             self.force[istep - index_start] = data["force"]
             self.nacme[istep - index_start] = data["nacme"]
 
-            with open(os.path.join(samp_dir, "RP." + str(istep) + ".bin"), "rb") as f:
+            with open(os.path.join(samp_dir, f"RP.{istep}.bin"), "rb") as f:
                 data = pickle.load(f)
             self.pos[istep - index_start] = data["pos"]
             self.vel[istep - index_start] = data["vel"]
@@ -100,8 +101,11 @@ class SH(CPA):
         base_dir, unixmd_dir, qm_log_dir, mm_log_dir =\
              self.run_init(qm, mm, output_dir, l_save_qm_log, l_save_mm_log, l_save_scr, restart)
 
-        bo_list = [] # a redundant variable in CPA-like dynamics
+        # a redundant variable in CPA-like dynamics
+        bo_list = []
+
         qm.calc_coupling = False
+
         self.print_init(qm, mm, restart)
 
         if (restart == None):
@@ -163,6 +167,7 @@ class SH(CPA):
 
             self.hop_prob()
             self.hop_check(bo_list)
+            self.evaluate_hop(bo_list)
 
             if (self.dec_correction == "idc"):
                 if (self.l_hop or self.l_reject):
@@ -220,8 +225,7 @@ class SH(CPA):
             self.acc_prob /= psum
 
     def hop_check(self, bo_list):
-        """ Routine to check hopping occurs with random number and record hopping event
-
+        """ Routine to check hopping occurs with random number
             :param integer,list bo_list: List of BO states for BO calculation
         """
         self.rand = random.random()
@@ -231,6 +235,101 @@ class SH(CPA):
             if (self.rand > self.acc_prob[ist] and self.rand <= self.acc_prob[ist + 1]):
                 self.l_hop = True
                 self.rstate = ist
+
+    def evaluate_hop(self, bo_list):
+        """ Routine to evaluate hopping and velocity rescaling
+
+            :param integer,list bo_list: List of BO states for BO calculation
+            :param integer istep: Current MD step
+        """
+        #if (self.l_hop):
+        #    # Calculate potential difference between hopping states
+        #    pot_diff = self.mol.states[self.rstate].energy - self.mol.states[self.rstate_old].energy
+
+        #    # Solve quadratic equation for scaling factor of velocities
+        #    a = 1.
+        #    b = 1.
+        #    det = 1.
+        #    if (self.hop_rescale == "velocity"):
+        #        a = np.sum(self.mol.mass[0:self.mol.nat_qm] * np.sum(self.mol.nac[self.rstate_old, self.rstate] ** 2., axis=1))
+        #        b = 2. * np.sum(self.mol.mass[0:self.mol.nat_qm] * np.sum(self.mol.nac[self.rstate_old, self.rstate] \
+        #            * self.mol.vel[0:self.mol.nat_qm], axis=1))
+        #        c = 2. * pot_diff
+        #        det = b ** 2. - 4. * a * c
+        #    elif (self.hop_rescale == "momentum"):
+        #        a = np.sum(1. / self.mol.mass[0:self.mol.nat_qm] * np.sum(self.mol.nac[self.rstate_old, self.rstate] ** 2., axis=1))
+        #        b = 2. * np.sum(np.sum(self.mol.nac[self.rstate_old, self.rstate] * self.mol.vel[0:self.mol.nat_qm], axis=1))
+        #        c = 2. * pot_diff
+        #        det = b ** 2. - 4. * a * c
+        #    elif (self.hop_rescale == "augment"):
+        #        a = np.sum(1. / self.mol.mass[0:self.mol.nat_qm] * np.sum(self.mol.nac[self.rstate_old, self.rstate] ** 2., axis=1))
+        #        b = 2. * np.sum(np.sum(self.mol.nac[self.rstate_old, self.rstate] * self.mol.vel[0:self.mol.nat_qm], axis=1))
+        #        c = 2. * pot_diff
+        #        det = b ** 2. - 4. * a * c
+
+        #    # Default: hopping is allowed
+        #    self.l_reject = False
+
+        #    # Velocities cannot be adjusted when zero kinetic energy is given
+        #    if (self.hop_rescale == "energy" and self.mol.ekin_qm < eps):
+        #        self.l_reject = True
+        #    # Clasically forbidden hop due to lack of kinetic energy
+        #    if (self.mol.ekin_qm < pot_diff):
+        #        self.l_reject = True
+        #    # Kinetic energy is enough, but there is no solution for scaling factor
+        #    if (det < 0.):
+        #        self.l_reject = True
+        #    # When kinetic energy is enough, velocities are always rescaled in 'augment' case
+        #    if (self.hop_rescale == "augment" and self.mol.ekin_qm > pot_diff):
+        #        self.l_reject = False
+
+        #    if (self.l_reject):
+        #        # Record event for frustrated hop
+        #        if (self.mol.ekin_qm < pot_diff):
+        #            self.event["HOP"].append(f"Reject hopping: smaller kinetic energy than potential energy difference between {self.rstate} and {self.rstate_old}")
+        #        # Set scaling constant with respect to 'hop_reject'
+        #        if (self.hop_reject == "keep"):
+        #            self.event["HOP"].append("Reject hopping: no solution to find rescale factor, velocity is not changed")
+        #        elif (self.hop_reject == "reverse"):
+        #            # x = - 1 when 'hop_rescale' is 'energy', otherwise x = - b / a
+        #            self.event["HOP"].append("Reject hopping: no solution to find rescale factor, velocity is reversed along coupling direction")
+        #            x = - b / a
+        #        # Recover old running state
+        #        self.l_hop = False
+        #        self.rstate = self.rstate_old
+        #        bo_list[0] = self.rstate
+        #    else:
+        #        if (self.hop_rescale == "energy" or (det < 0. and self.hop_rescale == "augment")):
+        #            if (det < 0.):
+        #                self.event["HOP"].append("Accept hopping: no solution to find rescale factor, but velocity is simply rescaled")
+        #            x = np.sqrt(1. - pot_diff / self.mol.ekin_qm)
+        #        else:
+        #            if (b < 0.):
+        #                x = 0.5 * (- b - np.sqrt(det)) / a
+        #            else:
+        #                x = 0.5 * (- b + np.sqrt(det)) / a
+
+        #    # Rescale velocities for QM atoms
+        #    if (not (self.hop_reject == "keep" and self.l_reject)):
+        #        if (self.hop_rescale == "energy"):
+        #            self.mol.vel[0:self.mol.nat_qm] *= x
+
+        #        elif (self.hop_rescale == "velocity"):
+        #            self.mol.vel[0:self.mol.nat_qm] += x * self.mol.nac[self.rstate_old, self.rstate]
+
+        #        elif (self.hop_rescale == "momentum"):
+        #            self.mol.vel[0:self.mol.nat_qm] += x * self.mol.nac[self.rstate_old, self.rstate] / \
+        #                self.mol.mass[0:self.mol.nat_qm].reshape((-1, 1))
+
+        #        elif (self.hop_rescale == "augment"):
+        #            if (det > 0. or self.mol.ekin_qm < pot_diff):
+        #                self.mol.vel[0:self.mol.nat_qm] += x * self.mol.nac[self.rstate_old, self.rstate] / \
+        #                    self.mol.mass[0:self.mol.nat_qm].reshape((-1, 1))
+        #            else:
+        #                self.mol.vel[0:self.mol.nat_qm] *= x
+
+        #    # Update kinetic energy
+        #    self.mol.update_kinetic()
 
         # Record hopping event
         if (self.rstate != self.rstate_old):
