@@ -151,18 +151,6 @@ class BOMD(CPA):
         self.mol.epot = self.mol.states[self.istate].energy
         self.mol.etot = self.mol.epot + self.mol.ekin
 
-    def cl_update_position(self):
-        """ Routine to update nuclear positions
-        """
-        self.mol.vel += 0.5 * self.dt * self.rforce / np.column_stack([self.mol.mass] * self.mol.ndim)
-        self.mol.pos += self.dt * self.mol.vel
-
-    def cl_update_velocity(self):
-        """ Routine to update nuclear velocities
-        """
-        self.mol.vel += 0.5 * self.dt * self.rforce / np.column_stack([self.mol.mass] * self.mol.ndim)
-        self.mol.update_kinetic()
-
     def print_init(self, qm, mm, restart):
         """ Routine to print the initial information of dynamics
             
