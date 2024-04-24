@@ -295,6 +295,12 @@ class CPA(object):
                 if (self.dec_correction == "edc"):
                     dynamics_info += f"  Energy Constant          = {self.edc_parameter:>16.6f}\n"
         
+        # SHXF not implemented in this version!
+        if (self.md_type == "SHXF"):
+            error_message = "Invalid md type!"
+            error_vars = f"md_type = {self.md_type}"
+            raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
+
         # Print system information
         dynamics_info += f"\n  Output Frequency         = {self.out_freq:>16d}\n"
         dynamics_info += f"  Verbosity Level          = {self.verbosity:>16d}\n"
