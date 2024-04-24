@@ -190,7 +190,7 @@ class CPA(object):
 
         os.chdir(base_dir[0])
 
-        return base_dir[0], unixmd_dir[0], qm_log_dir, mm_log_dir
+        return base_dir[0], unixmd_dir[0], qm_log_dir[0], mm_log_dir[0]
 
     def update_potential(self):
         """ Routine to update the potential of molecules
