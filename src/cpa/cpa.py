@@ -9,7 +9,7 @@ class CPA(object):
     """ Class for electronic propagator used in MQC dynamics with classical path approximation
 
         :param object molecule: Molecule object
-        :param object thermostat: Thermostat object
+        :param object thermostat: Thermostat type
         :param integer istate: Initial adiabatic state
         :param double dt: Time interval
         :param integer nsteps: Nuclear step
@@ -55,9 +55,16 @@ class CPA(object):
             error_vars = f"unit_dt = {unit_dt}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
 
+        # None for BOMD case
         self.elec_object = elec_object
         if (self.elec_object != None):
             self.elec_object = self.elec_object.lower()
+
+        # SHXF not implemented in this version!
+        if (self.md_type not in ["BOMD", "SH"]):
+            error_message = "Invalid md type!"
+            error_vars = f"md_type = {self.md_type}"
+            raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
 
         if not (self.elec_object in [None, "coefficient", "density"]):
             error_message = "Invalid electronic object!"
@@ -299,12 +306,6 @@ class CPA(object):
                 if (self.dec_correction == "edc"):
                     dynamics_info += f"  Energy Constant          = {self.edc_parameter:>16.6f}\n"
         
-        # SHXF not implemented in this version!
-        if (self.md_type == "SHXF"):
-            error_message = "Invalid md type!"
-            error_vars = f"md_type = {self.md_type}"
-            raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
-
         # Print system information
         dynamics_info += f"\n  Output Frequency         = {self.out_freq:>16d}\n"
         dynamics_info += f"  Verbosity Level          = {self.verbosity:>16d}\n"
@@ -406,4 +407,5 @@ class CPA(object):
                         "".join(["\n" + f'{self.mol.symbols[iat]:5s}' + \
                         "".join([f'{self.mol.nac[ist, jst, iat, isp]:15.8f}' for isp in range(self.mol.ndim)]) for iat in range(self.mol.nat_qm)])
                     typewriter(tmp, unixmd_dir, f"NACV_{ist}_{jst}", "a")
+
 

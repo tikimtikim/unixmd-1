@@ -14,13 +14,13 @@ class BOMD(CPA):
         :param integer istate: Electronic state
         :param double dt: Time interval
         :param integer nsteps: Total step of nuclear propagation
+        :param string samp_dir: Path of sampling data directory
         :param string unit_dt: Unit of time step
         :param integer out_freq: Frequency of printing output
         :param integer verbosity: Verbosity of output
-        :param string samp_dir: Path of sampling data directory
     """
     def __init__(self, molecule, thermostat=None, istate=0, dt=0.5, nsteps=1000, \
-        unit_dt="fs", out_freq=1, verbosity=0, samp_dir="./Data"):
+        samp_dir="./Data", unit_dt="fs", out_freq=1, verbosity=0):
         # Initialize input values
         super().__init__(molecule, thermostat, istate, dt, nsteps, None, None, None, \
             False, None, None, unit_dt, out_freq, verbosity)
@@ -198,25 +198,4 @@ class BOMD(CPA):
         INFO += f"{norm:11.5f}"
         print (INFO, flush=True)
 
-        # Print DEBUG1 for each step
-        if (self.verbosity >= 1):
-            cnt = 0
-            if (self.l_mult_el_hop):
-                DEBUG1 = ""
-                occ_list = np.where(self.rocc_old == 1)[0]
-                for ihop, iocc in enumerate(occ_list):
-                    DEBUG1 += f" DEBUG1{istep + 1:>7d}"
-                    DEBUG1 += f"{self.rand[ihop]:11.5f}"
-                    for ist in range(self.mol.nst):
-                        DEBUG1 += f"{self.acc_prob[ihop, ist]:12.5f} ({iocc + 1}->{ist + 1})"
-                    DEBUG1 += "\n"
-            else:
-                DEBUG1 = f" DEBUG1{istep + 1:>7d}"
-                DEBUG1 += f"{self.rand:11.5f}"
-                for ist in range(self.mol.nst):
-                    for jst in range(self.mol.nst):
-                        cnt += 1
-                        if (self.rocc_old[ist] == 0):
-                            continue
-                        DEBUG1 += f"{self.acc_prob[cnt]:12.5f} ({ist + 1}->{jst + 1})"
-            print (DEBUG1, flush=True)
+

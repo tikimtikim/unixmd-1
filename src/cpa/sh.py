@@ -100,35 +100,30 @@ class SH(CPA):
         # Initialize PyUNIxMD
         base_dir, unixmd_dir, qm_log_dir, mm_log_dir =\
              self.run_init(qm, mm, output_dir, l_save_qm_log, l_save_mm_log, l_save_scr, restart)
-
-        # a redundant variable in CPA-like dynamics
         bo_list = []
-
         qm.calc_coupling = False
-
         self.print_init(qm, mm, restart)
 
         if (restart == None):
             # Calculate initial input geometry at t = 0.0 s
             self.istep = -1
-            self.mol.reset_bo(qm.calc_coupling)
-
+            #self.mol.reset_bo(qm.calc_coupling)
             self.read_RV_from_file(self.istep)
             self.read_QM_from_file(self.istep)
             if (self.mol.l_qmmm and mm != None):
                 mm.get_data(self.mol, base_dir, bo_list, self.istep, calc_force_only=False)
 
             self.hop_prob()
-            self.hop_check(bo_list)
-            self.evaluate_hop(bo_list)
+            self.hop_check()
+            self.evaluate_hop()
  
             if (self.dec_correction == "idc"):
                 if (self.l_hop or self.l_reject):
                     self.correct_dec_idc()
-                elif (self.dec_correction == "edc"):
-                    # If kinetic is 0, coefficient/density matrix are update into itself
-                    if (self.mol.ekin_qm > eps):
-                        self.correct_dec_edc()
+            elif (self.dec_correction == "edc"):
+                # If kinetic is 0, coefficient/density matrix are update into itself
+                if (self.mol.ekin_qm > eps):
+                    self.correct_dec_edc()
  
             self.update_energy()
  
@@ -138,7 +133,6 @@ class SH(CPA):
         elif (restart == "write"):
             # Reset initial time step to t = 0.0 s
             self.istep = -1
-            
             self.read_RV_from_file(self.istep)
             self.read_QM_from_file(self.istep)
             self.write_md_output(unixmd_dir, self.istep)
@@ -167,8 +161,8 @@ class SH(CPA):
             el_run(self)
 
             self.hop_prob()
-            self.hop_check(bo_list)
-            self.evaluate_hop(bo_list)
+            self.hop_check()
+            self.evaluate_hop()
 
             if (self.dec_correction == "idc"):
                 if (self.l_hop or self.l_reject):
@@ -186,16 +180,20 @@ class SH(CPA):
                 self.print_step(istep)
             
             self.fstep = istep
+            restart_file = os.path.join(base_dir, "RESTART.bin")
+            with open(restart_file, "wb") as f:
+                pickle.dump({'qm':qm, 'md':self}, f)
+        
+        # Delete scratch directory
+        if (not l_save_scr):
+            tmp_dir = os.path.join(unixmd_dir, "scr_qm")
+            if(os.path.exists(tmp_dir)):
+                shutil.rmtree(tmp_dir)
 
-            if (not l_save_scr):
-                tmp_dir = os.path.join(unixmd_dir, "scr_qm")
-                if(os.path.exists(tmp_dir)):
+            if(self.mol.l_qmmm and mm != None):
+                tmp_dir = os.path.join(unixmd_dir, "scr_mm")
+                if (os.path.exists(tmp_dir)):
                     shutil.rmtree(tmp_dir)
-
-                if(self.mol.l_qmmm and mm != None):
-                    tmp_dir = os.path.join(unixmd_dir, "scr_mm")
-                    if (os.path.exists(tmp_dir)):
-                        shutil.rmtree(tmp_dir)
 
     def hop_prob(self):
         """ Routine to calculate hopping probabilities
@@ -225,10 +223,8 @@ class SH(CPA):
             self.prob /= psum
             self.acc_prob /= psum
 
-    def hop_check(self, bo_list):
+    def hop_check(self):
         """ Routine to check hopping occurs with random number
-
-            :param integer,list bo_list: List of BO states for BO calculation
         """
         self.rand = random.random()
         for ist in range(self.mol.nst):
@@ -238,11 +234,8 @@ class SH(CPA):
                 self.l_hop = True
                 self.rstate = ist
 
-    def evaluate_hop(self, bo_list):
+    def evaluate_hop(self):
         """ Routine to evaluate hopping and velocity rescaling
-
-            :param integer,list bo_list: List of BO states for BO calculation
-            :param integer istep: Current MD step
         """
         #if (self.l_hop):
         #    # Calculate potential difference between hopping states
@@ -517,3 +510,5 @@ class SH(CPA):
         """
         self.mol.pos = self.pos[istep]
         self.mol.vel = self.vel[istep]
+
+
