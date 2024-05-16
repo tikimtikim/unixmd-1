@@ -48,6 +48,10 @@ class SH(CPA):
         self.l_hop = False
         self.l_reject = False
 
+        self.index_start = index_start
+
+        self.samp_dir = samp_dir
+
         # Initialize decoherence variables
         self.dec_correction = dec_correction
         self.edc_parameter = edc_parameter
