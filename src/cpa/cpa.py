@@ -3,12 +3,66 @@ from misc import fs_to_au, au_to_A, call_name, typewriter
 import textwrap, datetime
 import numpy as np
 import os, shutil
+import pickle
+
+class Trajectory(object):
+    """ Class to save BOMD trajectory data for CPA dynamics
+
+        :param object molecule: Molecule object
+        :param integer nsteps: Total step of nuclear propagation
+    """
+    def __init__(self, molecule, nsteps):
+        self.pos = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.vel = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.energy = np.zeros((nsteps + 1, molecule.nst))
+        self.force = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.nacme = np.zeros((nsteps + 1, molecule.nst, molecule.nst))
+
+    def read_RV_from_file(self, index_start, nsteps, traj_dir):
+        """ Routine to save precomputed atomic position, velocities for CPA dynamics
+
+            :param integer index_start: Initial index for running SH with sampled data
+            :param integer nsteps: Total step of nuclear propagation
+            :param string traj_dir: Path of sampling data directory
+        """
+        steps = [x for x in range(index_start, index_start + nsteps)]
+        steps.append(index_start-1)
+        for istep in steps:
+
+            RV_path = os.path.join(traj_dir, f"RV.{istep}.bin")
+            with open(RV_path, "rb") as f:
+                Data = pickle.load(f)
+            
+            save_step = istep - index_start
+            self.pos[save_step] = Data["POS"]
+            self.vel[save_step] = Data["VEL"]
+
+    def read_QM_from_file(self, index_start, nsteps, traj_dir):
+        """ Routine to read precomputed QM information for CPA dynamics
+
+            :param integer index_start: Initial index for running SH with sampled data
+            :param integer nsteps: Total step of nuclear propagation
+            :param string traj_dir: Path of sampling data directory
+        """
+        steps = [x for x in range(index_start, index_start + nsteps)]
+        steps.append(index_start-1)
+        for istep in steps:
+
+            QM_path = os.path.join(traj_dir, f"QM.{istep}.bin")
+            with open(QM_path, "rb") as f:
+                Data = pickle.load(f)
+            
+            save_step = istep - index_start
+            self.energy[save_step] = Data["ENERGY"]
+            self.force[save_step] = Data["FORCE"]
+            self.nacme[save_step] = Data["NACME"]
 
 
 class CPA(object):
     """ Class for electronic propagator used in MQC dynamics with classical path approximation
 
         :param object molecule: Molecule object
+        :param object thermostat: Thermostat type
         :param integer istate: Initial adiabatic state
         :param double dt: Time interval
         :param integer nsteps: Nuclear step
@@ -23,13 +77,16 @@ class CPA(object):
         :param integer out_freq: Frequency of printing output
         :param integer verbosity: Verbosity of output
     """
-    def __init__(self, molecule, istate, dt, nsteps, nesteps, \
+    def __init__(self, molecule, thermostat, istate, dt, nsteps, nesteps, \
         elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity):
         # Save name of MQC dynamics
         self.md_type = self.__class__.__name__
 
         # Initialize Molecule object
         self.mol = molecule
+
+        # Initialize Thermostat object
+        self.thermo = thermostat
 
         # Initialize input values
         self.istate = istate
@@ -51,11 +108,18 @@ class CPA(object):
             error_vars = f"unit_dt = {unit_dt}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
 
+        # None for BOMD case
         self.elec_object = elec_object
         if (self.elec_object != None):
             self.elec_object = self.elec_object.lower()
 
-        if not (self.elec_object in ["coefficient", "density"]):
+        # SHXF not implemented in this version!
+        if (self.md_type not in ["BOMD", "SH"]):
+            error_message = "Invalid md type!"
+            error_vars = f"md_type = {self.md_type}"
+            raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
+
+        if not (self.elec_object in [None, "coefficient", "density"]):
             error_message = "Invalid electronic object!"
             error_vars = f"elec_object = {self.elec_object}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
@@ -64,7 +128,7 @@ class CPA(object):
         if (self.propagator != None):
             self.propagator = self.propagator.lower()
 
-        if not (self.propagator in ["rk4", "exponential"]):
+        if not (self.propagator in [None, "rk4", "exponential"]):
             error_message = "Invalid electronic propagator!"
             error_vars = f"propagator = {self.propagator}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
@@ -73,6 +137,8 @@ class CPA(object):
             error_message = "exponential propagator is incompatible with objects other than coefficient"
             error_vars = f"elec_object = {self.elec_object}, propagator = {self.propagator}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
+
+        self.traj = Trajectory(self.mol, self.nsteps)
 
         self.l_print_dm = l_print_dm
 
@@ -190,7 +256,32 @@ class CPA(object):
 
         os.chdir(base_dir[0])
 
-        return base_dir, unixmd_dir, qm_log_dir, mm_log_dir
+        return base_dir[0], unixmd_dir[0], qm_log_dir[0], mm_log_dir[0]
+
+    def cl_update_position(self, istep):
+        """ Routine to update nuclear positions
+
+            :param integer istep: Current MD step
+        """
+        self.mol.pos = np.copy(self.traj.pos[istep])
+
+    def cl_update_velocity(self, istep):
+        """ Routine to update nuclear velocities
+
+            :param integer istep: Current MD step
+        """
+        self.mol.vel = np.copy(self.traj.vel[istep])
+
+    def get_data(self, istep):
+        """ Routine to update energy, force, nacme
+
+            :param integer istep: Current MD step
+        """
+
+        for ist in range(self.mol.nst):
+            self.mol.states[ist].energy = np.copy(self.traj.energy[istep][ist])
+        self.mol.force = np.copy(self.traj.force[istep])
+        self.mol.nacme = np.copy(self.traj.nacme[istep])
 
     def update_potential(self):
         """ Routine to update the potential of molecules
@@ -265,14 +356,16 @@ class CPA(object):
         dynamics_info += textwrap.indent(textwrap.dedent(f"""\
 
           MQC Method               = {self.md_type:>16s}
+          Classical Path Approx.   = {'Yes':>16s}
           Time Interval (fs)       = {self.dt / fs_to_au:16.6f}
           Initial State (0:GS)     = {self.istate:>16d}
           Nuclear Step             = {self.nsteps:>16d}
         """), "  ")
 
-        dynamics_info += f"  Electronic Step          = {self.nesteps:>16d}\n"
-        dynamics_info += f"  Electronic Propagator    = {self.propagator:>16s}\n"
-        dynamics_info += f"  Propagation Scheme       = {self.elec_object:>16s}\n"
+        if (self.md_type != "BOMD"):
+            dynamics_info += f"  Electronic Step          = {self.nesteps:>16d}\n"
+            dynamics_info += f"  Electronic Propagator    = {self.propagator:>16s}\n"
+            dynamics_info += f"  Propagation Scheme       = {self.elec_object:>16s}\n"
 
         # Print ad-hoc decoherence variables
         if (self.md_type == "SH"):
@@ -336,5 +429,51 @@ class CPA(object):
 
     def write_md_output(self, unixmd_dir, istep):
         """ Write output files
+
+            :param string unixmd_dir: Directory where MD output files are written
+            :param integer istep: Current MD step
         """
-        pass
+        # Write MOVIE.xyz file including positions and velocities
+        tmp = f'{self.mol.nat:6d}\n{"":2s}Step:{istep + 1:6d}{"":12s}Position(A){"":34s}Velocity(au)' + \
+            "".join(["\n" + f'{self.mol.symbols[iat]:5s}' + \
+            "".join([f'{self.mol.pos[iat, isp] * au_to_A:15.8f}' for isp in range(self.mol.ndim)]) + \
+            "".join([f"{self.mol.vel[iat, isp]:15.8f}" for isp in range(self.mol.ndim)]) for iat in range(self.mol.nat)])
+        typewriter(tmp, unixmd_dir, "MOVIE.xyz", "a")
+
+        # Write MDENERGY file including several energy information
+        tmp = f'{istep + 1:9d}{self.mol.ekin:15.8f}{self.mol.epot:15.8f}{self.mol.etot:15.8f}' \
+            + "".join([f'{states.energy:15.8f}' for states in self.mol.states])
+        typewriter(tmp, unixmd_dir, "MDENERGY", "a")
+
+        # Write BOCOEF, BOPOP, BOCOH files
+        if (self.elec_object == "density"):
+            tmp = f'{istep + 1:9d}' + "".join([f'{self.mol.rho.real[ist, ist]:15.8f}' for ist in range(self.mol.nst)])
+            typewriter(tmp, unixmd_dir, "BOPOP", "a")
+            tmp = f'{istep + 1:9d}' + "".join([f"{self.mol.rho.real[ist, jst]:15.8f}{self.mol.rho.imag[ist, jst]:15.8f}" \
+                for ist in range(self.mol.nst) for jst in range(ist + 1, self.mol.nst)])
+            typewriter(tmp, unixmd_dir, "BOCOH", "a")
+        elif (self.elec_object == "coefficient"):
+            tmp = f'{istep + 1:9d}' + "".join([f'{states.coef.real:15.8f}{states.coef.imag:15.8f}' \
+                for states in self.mol.states])
+            typewriter(tmp, unixmd_dir, "BOCOEF", "a")
+            if (self.l_print_dm):
+                tmp = f'{istep + 1:9d}' + "".join([f'{self.mol.rho.real[ist, ist]:15.8f}' for ist in range(self.mol.nst)])
+                typewriter(tmp, unixmd_dir, "BOPOP", "a")
+                tmp = f'{istep + 1:9d}' + "".join([f"{self.mol.rho.real[ist, jst]:15.8f}{self.mol.rho.imag[ist, jst]:15.8f}" \
+                    for ist in range(self.mol.nst) for jst in range(ist + 1, self.mol.nst)])
+
+        # Write NACME file
+        tmp = f'{istep + 1:10d}' + "".join([f'{self.mol.nacme[ist, jst]:15.8f}' \
+            for ist in range(self.mol.nst) for jst in range(ist + 1, self.mol.nst)])
+        typewriter(tmp, unixmd_dir, "NACME", "a")
+
+        # Write NACV file
+        if (not self.mol.l_nacme and self.verbosity >= 2):
+            for ist in range(self.mol.nst):
+                for jst in range(ist + 1, self.mol.nst):
+                    tmp = f'{self.mol.nat_qm:6d}\n{"":2s}Step:{istep + 1:6d}{"":12s}NACV' + \
+                        "".join(["\n" + f'{self.mol.symbols[iat]:5s}' + \
+                        "".join([f'{self.mol.nac[ist, jst, iat, isp]:15.8f}' for isp in range(self.mol.ndim)]) for iat in range(self.mol.nat_qm)])
+                    typewriter(tmp, unixmd_dir, f"NACV_{ist}_{jst}", "a")
+
+
