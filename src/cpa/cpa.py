@@ -18,6 +18,45 @@ class Trajectory(object):
         self.force = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
         self.nacme = np.zeros((nsteps + 1, molecule.nst, molecule.nst))
 
+    def read_RV_from_file(self, index_start, nsteps, traj_dir):
+        """ Routine to save precomputed atomic position, velocities for CPA dynamics
+
+            :param integer index_start: Initial index for running SH with sampled data
+            :param integer nsteps: Total step of nuclear propagation
+            :param string traj_dir: Path of sampling data directory
+        """
+        steps = [x for x in range(index_start, index_start + nsteps)]
+        steps.append(index_start-1)
+        for istep in steps:
+
+            RV_path = os.path.join(traj_dir, f"RV.{istep}.bin")
+            with open(RV_path, "rb") as f:
+                Data = pickle.load(f)
+            
+            save_step = istep - index_start
+            self.pos[save_step] = Data["POS"]
+            self.vel[save_step] = Data["VEL"]
+
+    def read_QM_from_file(self, index_start, nsteps, traj_dir):
+        """ Routine to read precomputed QM information for CPA dynamics
+
+            :param integer index_start: Initial index for running SH with sampled data
+            :param integer nsteps: Total step of nuclear propagation
+            :param string traj_dir: Path of sampling data directory
+        """
+        steps = [x for x in range(index_start, index_start + nsteps)]
+        steps.append(index_start-1)
+        for istep in steps:
+
+            QM_path = os.path.join(traj_dir, f"QM.{istep}.bin")
+            with open(QM_path, "rb") as f:
+                Data = pickle.load(f)
+            
+            save_step = istep - index_start
+            self.energy[save_step] = Data["ENERGY"]
+            self.force[save_step] = Data["FORCE"]
+            self.nacme[save_step] = Data["NACME"]
+
 
 class CPA(object):
     """ Class for electronic propagator used in MQC dynamics with classical path approximation

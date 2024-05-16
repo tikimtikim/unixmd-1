@@ -37,19 +37,6 @@ class SH(CPA):
         super().__init__(molecule, thermostat, istate, dt, nsteps, nesteps, \
             elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity)
 
-        for istep in range(index_start - 1, index_start + nsteps):
-            with open(os.path.join(samp_dir, f"QM.{istep}.bin"), "rb") as f:
-                data = pickle.load(f)
-
-            self.energy[istep - index_start] = data["ENERGY"]
-            self.force[istep - index_start] = data["FORCE"]
-            self.nacme[istep - index_start] = data["NACME"]
-
-            with open(os.path.join(samp_dir, f"RV.{istep}.bin"), "rb") as f:
-                data = pickle.load(f)
-            self.pos[istep - index_start] = data["POS"]
-            self.vel[istep - index_start] = data["VEL"]
-
         # Initialize SH variables
         self.rstate = istate
         self.rstate_old = self.rstate
