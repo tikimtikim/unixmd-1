@@ -5,6 +5,20 @@ import numpy as np
 import os, shutil
 
 
+class Trajectory(object):
+    """ Class to save BOMD trajectory data for CPA dynamics
+
+        :param object molecule: Molecule object
+        :param integer nsteps: Total step of nuclear propagation
+    """
+    def __init__(self, molecule, nsteps):
+        self.pos = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.vel = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.energy = np.zeros((nsteps + 1, molecule.nst))
+        self.force = np.zeros((nsteps + 1, molecule.nat, molecule.ndim))
+        self.nacme = np.zeros((nsteps + 1, molecule.nst, molecule.nst))
+
+
 class CPA(object):
     """ Class for electronic propagator used in MQC dynamics with classical path approximation
 
@@ -84,6 +98,8 @@ class CPA(object):
             error_message = "exponential propagator is incompatible with objects other than coefficient"
             error_vars = f"elec_object = {self.elec_object}, propagator = {self.propagator}"
             raise ValueError (f"( {self.md_type}.{call_name()} ) {error_message} ( {error_vars} )")
+
+        self.traj = Trajectory(self.mol, self.nsteps)
 
         self.l_print_dm = l_print_dm
 

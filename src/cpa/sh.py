@@ -37,13 +37,6 @@ class SH(CPA):
         super().__init__(molecule, thermostat, istate, dt, nsteps, nesteps, \
             elec_object, propagator, l_print_dm, l_adj_nac, init_coef, unit_dt, out_freq, verbosity)
 
-        # Initialize trajectory data
-        self.pos = np.zeros((self.nsteps + 1, molecule.nat, molecule.ndim))
-        self.vel = np.zeros((self.nsteps + 1, molecule.nat, molecule.ndim))
-        self.energy = np.zeros((self.nsteps + 1, molecule.nst))
-        self.force = np.zeros((self.nsteps + 1, molecule.nat, molecule.ndim))
-        self.nacme = np.zeros((self.nsteps + 1, molecule.nst, molecule.nst))
-        
         for istep in range(index_start - 1, index_start + nsteps):
             with open(os.path.join(samp_dir, f"QM.{istep}.bin"), "rb") as f:
                 data = pickle.load(f)
@@ -133,8 +126,6 @@ class SH(CPA):
         elif (restart == "write"):
             # Reset initial time step to t = 0.0 s
             self.istep = -1
-            self.read_RV_from_file(self.istep)
-            self.read_QM_from_file(self.istep)
             self.write_md_output(unixmd_dir, self.istep)
             self.print_step(self.istep)
 
