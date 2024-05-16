@@ -84,12 +84,16 @@ class SH(CPA):
         qm.calc_coupling = False
         self.print_init(qm, mm, restart)
 
+        self.traj.read_RV_from_file(self.index_start, self.nsteps, self.samp_dir)
+        self.traj.read_QM_from_file(self.index_start, self.nsteps, self.samp_dir)
+
         if (restart == None):
             # Calculate initial input geometry at t = 0.0 s
             self.istep = -1
             #self.mol.reset_bo(qm.calc_coupling)
-            self.read_RV_from_file(self.istep)
-            self.read_QM_from_file(self.istep)
+            self.cl_update_position(self.istep)
+            self.cl_update_velocity(self.istep)
+            self.get_data(self.istep)
             if (self.mol.l_qmmm and mm != None):
                 mm.get_data(self.mol, base_dir, bo_list, self.istep, calc_force_only=False)
 
@@ -127,14 +131,14 @@ class SH(CPA):
               
             self.mol.backup_bo()
             self.mol.reset_bo(qm.calc_coupling)
-            self.read_QM_from_file(istep)
+            self.get_data(istep)
             if (self.mol.l_qmmm and mm != None):
                 mm.get_data(self.mol, base_dir, bo_list, istep, calc_force_only=False)
 
             if (not self.mol.l_nacme and self.l_adj_nac):
                 self.mol.adjust_nac()
 
-            self.read_RV_from_file(istep)
+            self.cl_update_velocity(self.istep)
             
             el_run(self)
 
@@ -470,23 +474,4 @@ class SH(CPA):
                 for ievent in events:
                     print (f" {category}{istep + 1:>9d}  {ievent}", flush=True)
         self.event["HOP"] = []
-
-    def read_QM_from_file(self, istep):
-        """ Routine to read precomputed QM information for CPA dynamics
-
-            :param integer istep: Current MD step
-        """
-        for ist in range(self.mol.nst):
-            self.mol.states[ist].energy = self.energy[istep, ist]
-        self.rforce = self.force[istep]
-        self.mol.nacme = self.nacme[istep]
-
-    def read_RV_from_file(self, istep):
-        """ Routine to read precomputed atomic position, velocities for CPA dynamics
-
-            :param integer istep: Current MD step
-        """
-        self.mol.pos = self.pos[istep]
-        self.mol.vel = self.vel[istep]
-
 

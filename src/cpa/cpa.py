@@ -3,7 +3,7 @@ from misc import fs_to_au, au_to_A, call_name, typewriter
 import textwrap, datetime
 import numpy as np
 import os, shutil
-
+import pickle
 
 class Trajectory(object):
     """ Class to save BOMD trajectory data for CPA dynamics
@@ -258,17 +258,30 @@ class CPA(object):
 
         return base_dir[0], unixmd_dir[0], qm_log_dir[0], mm_log_dir[0]
 
-    def cl_update_position(self):
+    def cl_update_position(self, istep):
         """ Routine to update nuclear positions
-        """
-        self.mol.vel += 0.5 * self.dt * self.rforce / np.column_stack([self.mol.mass] * self.mol.ndim)
-        self.mol.pos += self.dt * self.mol.vel
 
-    def cl_update_velocity(self):
-        """ Routine to update nuclear velocities
+            :param integer istep: Current MD step
         """
-        self.mol.vel += 0.5 * self.dt * self.rforce / np.column_stack([self.mol.mass] * self.mol.ndim)
-        self.mol.update_kinetic()
+        self.mol.pos = np.copy(self.traj.pos[istep])
+
+    def cl_update_velocity(self, istep):
+        """ Routine to update nuclear velocities
+
+            :param integer istep: Current MD step
+        """
+        self.mol.vel = np.copy(self.traj.vel[istep])
+
+    def get_data(self, istep):
+        """ Routine to update energy, force, nacme
+
+            :param integer istep: Current MD step
+        """
+
+        for ist in range(self.mol.nst):
+            self.mol.states[ist].energy = np.copy(self.traj.energy[istep][ist])
+        self.mol.force = np.copy(self.traj.force[istep])
+        self.mol.nacme = np.copy(self.traj.nacme[istep])
 
     def update_potential(self):
         """ Routine to update the potential of molecules
